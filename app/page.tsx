@@ -1,4 +1,4 @@
-
+"use client";
 import {
   Search,
   CalendarDays,
@@ -9,6 +9,7 @@ import {
   Clock3,
   Check,
 } from "lucide-react";
+import { useRef } from "react";
 
 const watchlist = [
   { symbol: "NVDA", name: "NVIDIA", price: "186.52", change: "+2.41%", positive: true },
@@ -38,6 +39,7 @@ function Widget({ children, className = "" }: { children: React.ReactNode; class
 }
 
 export default function Home() {
+  const searchRef = useRef<HTMLInputElement>(null);
   return (
     <main className="dashboard">
       <header className="topbar">
@@ -51,21 +53,39 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="welcome">
-        <p className="eyebrow">THURSDAY, NOVEMBER 12, 2026</p>
-        <h1>Your day, <em>in perspective.</em></h1>
-        <p className="welcome-subtitle">A little space to think, plan, and stay informed.</p>
+      
+  <section className="welcome">
+    <p className="eyebrow">THURSDAY, NOVEMBER 12, 2026</p>
+    <h1>Your day, <em>in perspective.</em></h1>
+    <p className="welcome-subtitle">
+      A little space to think, plan, and stay informed.
+    </p>
 
-        <div className="search-wrap">
-          <Search size={19} strokeWidth={1.6} />
-          <input
-            type="text"
-            placeholder="Search anything, or find something to focus on..."
-            aria-label="Search"
-          />
-          <span className="search-shortcut">⌘ K</span>
-        </div>
-      </section>
+    <div className="search-wrap">
+      <Search size={19} strokeWidth={1.6} />
+
+      <form
+        action="https://www.google.com/search"
+        method="GET"
+        target="_blank"
+        onSubmit={()=>{
+          if (searchRef.current){
+            searchRef.current.value = "";
+          }
+        }}
+      >
+        <input
+        ref={searchRef}
+          type="search"
+          name="q"
+          placeholder="Search anything, or find something to focus on..."
+          aria-label="Search Google"
+        />
+      </form>
+      <span className="search-shortcut">⌘ K</span>
+    </div>
+  </section>
+
 
       <div className="dashboard-heading">
         <span>YOUR OVERVIEW</span>

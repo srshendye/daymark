@@ -159,6 +159,15 @@ button {
   transition: border-color .2s;
 }
 
+.search-wrap form {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-wrap input {
+  width: 100%;
+}
+
 .search-wrap:focus-within {
   border-color: var(--sage-dark);
 }
