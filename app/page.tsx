@@ -9,7 +9,7 @@ import {
   Clock3,
   Check,
 } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const watchlist = [
   { symbol: "NVDA", name: "NVIDIA", price: "186.52", change: "+2.41%", positive: true },
@@ -40,6 +40,49 @@ function Widget({ children, className = "" }: { children: React.ReactNode; class
 
 export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null);
+  const [notes, setNotes] = useState("");
+  const [notesLoaded, setNotesLoaded] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [today, setToday] = useState<Date | null>(null)
+const formatDate = (date: Date) =>{
+    const options: Intl.DateTimeFormatOptions = {
+      weekday: "long", 
+      year: "numeric",
+      day: "numeric",
+      month: "long",
+    }
+    console.log('date', date.toLocaleDateString("en-CA", options))
+
+    return date.toLocaleDateString("en-CA", options)
+  };
+  
+  useEffect(()=>{
+    setToday(new Date())
+  }, [])
+
+  
+  useEffect(()=>{
+    const savedNotes = localStorage.getItem("daymark-notes");
+    if (savedNotes !== null){
+      setNotes(savedNotes)
+    }
+    setNotesLoaded(true);
+
+  }, []); //load on mount from local storage
+
+  const handleNotesSubmit = () =>{
+    localStorage.setItem("daymark-notes", notes)
+    setSubmitted(true)
+  }; 
+
+  useEffect(()=>{ //save to storage when the written note changes
+    if(notesLoaded){
+      localStorage.setItem("daymark-notes", notes);
+      console.log(localStorage.getItem("daymark-notes"))
+    }
+  }, [notes, notesLoaded])
+
+
   return (
     <main className="dashboard">
       <header className="topbar">
@@ -48,14 +91,14 @@ export default function Home() {
           <span>daymark</span>
         </a>
         <div className="topbar-right">
-          <span className="date-small">THURSDAY, NOVEMBER 12</span>
+          <span className="date-small">{today? formatDate(today).toUpperCase() : ""}</span>
           <div className="avatar">S</div>
         </div>
       </header>
 
       
   <section className="welcome">
-    <p className="eyebrow">THURSDAY, NOVEMBER 12, 2026</p>
+    <p className="eyebrow">{today? formatDate(today).toUpperCase() : ""}</p>
     <h1>Your day, <em>in perspective.</em></h1>
     <p className="welcome-subtitle">
       A little space to think, plan, and stay informed.
@@ -90,7 +133,7 @@ export default function Home() {
       <div className="dashboard-heading">
         <span>YOUR OVERVIEW</span>
         <span className="heading-line" />
-        <span className="muted">THURSDAY / 01</span>
+        <span className="muted">{today?.toLocaleDateString("en-CA", {weekday: "long"}).toUpperCase() ?? ""} / {today?.toLocaleDateString("en-CA", {day: "2-digit"}) ?? ""} </span>
       </div>
 
       <div className="widget-grid">
@@ -101,10 +144,13 @@ export default function Home() {
             <CalendarDays size={18} />
           </div>
           <div className="agenda-date">
-            <span className="agenda-day">12</span>
+            <span className="agenda-day">{today?.getDate() ?? "--"}</span>
             <div>
-              <p>Thursday</p>
-              <span>November 2026</span>
+              <p>{today?.toLocaleDateString("en-CA", { weekday: "long" }) ?? ""}</p>
+              <span>{today?.toLocaleDateString("en-CA", {
+        month: "long",
+        year: "numeric",
+      }) ?? ""}</span>
             </div>
           </div>
           <div className="event-list">
@@ -210,11 +256,31 @@ export default function Home() {
             <h2>A thought for today</h2>
             <Clock3 size={17} />
           </div>
-          <textarea placeholder="What is on your mind today?" aria-label="Daily notes" />
-          <div className="notes-footer">
-            <span>Your space, your pace.</span>
-            <button className="icon-action" aria-label="Save note"><Check size={16} /></button>
-          </div>
+          <textarea placeholder="What is on your mind today?" aria-label="Daily notes" 
+          value={notes}
+          onChange={(e)=> {
+            setNotes(e.target.value)
+            setSubmitted(false)
+          } }/>
+          
+<div className="notes-footer">
+  <span>Your space, your pace.</span>
+
+  <div className="notes-actions">
+    {submitted && (
+      <span className="save-status">Saved</span>
+    )}
+
+    <button
+      className="icon-action"
+      aria-label="Save note"
+      onClick={handleNotesSubmit}
+    >
+      <Check size={16} />
+    </button>
+  </div>
+</div>
+
         </Widget>
       </div>
 

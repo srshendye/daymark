@@ -601,3 +601,15 @@ button {
     padding: 20px;
   }
 }
+
+.notes-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
