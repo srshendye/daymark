@@ -613,3 +613,62 @@ button {
   color: var(--text-secondary);
   opacity: 0.7;
 }
+
+.add-stock-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 20px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.add-stock-form:focus-within {
+  border-color: var(--sage);
+}
+
+.add-stock-form input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 9px 10px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.add-stock-form input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.65;
+}
+
+.add-stock-form button {
+  background: var(--sage-dark);
+  border: 1px solid var(--sage-dark);
+  border-radius: 4px;
+  padding: 9px 16px;
+  color: #f5f3ed;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.add-stock-form button:hover {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+
+.stock-error {
+  flex-basis: 100%;
+  margin: 4px 10px 6px;
+  color: #c98787;
+  font-size: 11px;
+}

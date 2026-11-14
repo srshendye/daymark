@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
-const watchlist = [
+const initialWatchlist = [
   { symbol: "NVDA", name: "NVIDIA", price: "186.52", change: "+2.41%", positive: true },
   { symbol: "AAPL", name: "Apple", price: "273.18", change: "+0.84%", positive: true },
   { symbol: "MSFT", name: "Microsoft", price: "512.30", change: "-0.62%", positive: false },
@@ -43,7 +43,72 @@ export default function Home() {
   const [notes, setNotes] = useState("");
   const [notesLoaded, setNotesLoaded] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [today, setToday] = useState<Date | null>(null)
+  const [today, setToday] = useState<Date | null>(null);
+  const [stocks, setStocks] = useState(initialWatchlist);
+  const [watchlistLoaded, setWatchlistLoaded] = useState(false);
+  const [showAddStock, setShowAddStock] = useState(false);
+  const [newStockSymbol, setNewStockSymbol] = useState("");
+  const [stockError, setStockError] = useState("");
+
+// Load saved watchlist
+useEffect(() => {
+  const savedStocks = localStorage.getItem("daymark-watchlist");
+
+  if (savedStocks) {
+    setStocks(JSON.parse(savedStocks));
+  }
+
+  setWatchlistLoaded(true);
+}, []);
+
+// Save watchlist whenever it changes
+useEffect(() => {
+  if (watchlistLoaded) {
+    localStorage.setItem("daymark-watchlist", JSON.stringify(stocks));
+  }
+}, [stocks, watchlistLoaded]);
+
+const handleAddStock = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  const symbol = newStockSymbol.trim().toUpperCase();
+
+  if (!symbol) return;
+
+  if (!/^[A-Z0-9.-]{1,12}$/.test(symbol)) {
+    setStockError("Please enter a valid ticker.");
+    return;
+  }
+
+  if (stocks.some((stock) => stock.symbol === symbol)) {
+    setStockError("Already in your watchlist.");
+    return;
+  }
+
+  setStocks((current) => [
+    ...current,
+    {
+      symbol: symbol,
+      name: symbol,
+      price: "--",
+      change: "--",
+      positive: true,
+    },
+  ]);
+
+  setNewStockSymbol("");
+  setStockError("");
+  setShowAddStock(false);
+};
+
+
+const handleRemoveStock = (symbol: string) => {
+  setStocks((current) =>
+    current.filter((stock) => stock.symbol !== symbol)
+  );
+};
+
+
 const formatDate = (date: Date) =>{
     const options: Intl.DateTimeFormatOptions = {
       weekday: "long", 
@@ -206,22 +271,65 @@ const formatDate = (date: Date) =>{
           <SectionLabel number="03">WATCHLIST</SectionLabel>
           <div className="widget-heading">
             <h2>On your radar</h2>
-            <button className="icon-action" aria-label="Add stock"><Plus size={17} /></button>
+            <button
+  className="icon-action"
+  aria-label="Add stock"
+  onClick={() => {
+    setShowAddStock(!showAddStock);
+    setStockError("");
+  }}
+>
+  <Plus size={17} />
+</button>
           </div>
+          {showAddStock && (
+  <form className="add-stock-form" onSubmit={handleAddStock}>
+    <input
+      type="text"
+      value={newStockSymbol}
+      onChange={(e) => {
+        setNewStockSymbol(e.target.value);
+        setStockError("");
+      }}
+      placeholder="Search by ticker symbol..."
+      autoFocus
+      maxLength={12}
+      aria-label="Stock ticker symbol"
+    />
+
+    <button type="submit">Add ticker</button>
+
+    {stockError && (
+      <p className="stock-error">{stockError}</p>
+    )}
+  </form>
+)}
           <div className="watchlist">
-            {watchlist.map((stock) => (
+            {stocks.map((stock) => (
               <div className="stock-row" key={stock.symbol}>
                 <div className="stock-identity">
                   <span className="stock-symbol">{stock.symbol}</span>
                   <span className="stock-name">{stock.name}</span>
                 </div>
                 <div className="stock-prices">
-                  <strong>${stock.price}</strong>
-                  <span className={stock.positive ? "positive" : "negative"}>
-                    {stock.positive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                    {stock.change}
-                  </span>
-                </div>
+  <strong>${stock.price}</strong>
+  <span className={stock.positive ? "positive" : "negative"}>
+    {stock.positive ? (
+      <ArrowUpRight size={13} />
+    ) : (
+      <ArrowDownRight size={13} />
+    )}
+    {stock.change}
+  </span>
+</div>
+
+<button
+  className="remove-stock"
+  aria-label={`Remove ${stock.symbol}`}
+  onClick={() => handleRemoveStock(stock.symbol)}
+>
+  ×
+</button>
               </div>
             ))}
           </div>
