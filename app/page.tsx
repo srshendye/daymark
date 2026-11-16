@@ -11,11 +11,22 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 
-const initialWatchlist = [
-  { symbol: "NVDA", name: "NVIDIA", price: "186.52", change: "+2.41%", positive: true },
-  { symbol: "AAPL", name: "Apple", price: "273.18", change: "+0.84%", positive: true },
-  { symbol: "MSFT", name: "Microsoft", price: "512.30", change: "-0.62%", positive: false },
-  { symbol: "GOOGL", name: "Alphabet", price: "295.61", change: "+1.12%", positive: true },
+type Stock = {
+  symbol: string;
+  name: string;
+  price: number | null;
+  changePercent: number | null;
+  positive: boolean;
+  loading: boolean;
+  error?: string;
+  date?: string;
+};
+
+const initialWatchlist: Stock[] = [
+  { symbol: "NVDA", name: "NVIDIA", price: null, changePercent: null, positive: true, loading: false },
+  { symbol: "AAPL", name: "Apple", price: null, changePercent: null, positive: true, loading: false },
+  { symbol: "MSFT", name: "Microsoft", price: null, changePercent: null, positive: true, loading: false },
+  { symbol: "GOOGL", name: "Alphabet", price: null, changePercent: null, positive: true, loading: false },
 ];
 
 const events = [
@@ -50,12 +61,26 @@ export default function Home() {
   const [newStockSymbol, setNewStockSymbol] = useState("");
   const [stockError, setStockError] = useState("");
 
-// Load saved watchlist
 useEffect(() => {
   const savedStocks = localStorage.getItem("daymark-watchlist");
 
   if (savedStocks) {
-    setStocks(JSON.parse(savedStocks));
+    try {
+      const parsedStocks = JSON.parse(savedStocks);
+
+      setStocks(
+        parsedStocks.map((stock: Stock) => ({
+          symbol: stock.symbol,
+          name: stock.name || stock.symbol,
+          price: null,
+          changePercent: null,
+          positive: true,
+          loading: false,
+        }))
+      );
+    } catch {
+      console.error("Could not load saved watchlist.");
+    }
   }
 
   setWatchlistLoaded(true);
@@ -88,18 +113,98 @@ const handleAddStock = (e: React.SyntheticEvent<HTMLFormElement>) => {
   setStocks((current) => [
     ...current,
     {
-      symbol: symbol,
-      name: symbol,
-      price: "--",
-      change: "--",
-      positive: true,
-    },
+  symbol,
+  name: symbol,
+  price: null,
+  changePercent: null,
+  positive: true,
+  loading: false,
+},
   ]);
 
   setNewStockSymbol("");
   setStockError("");
   setShowAddStock(false);
 };
+
+// Fetch market data for stocks without prices
+useEffect(() => {
+  if (!watchlistLoaded) return;
+
+  const pendingStocks = stocks.filter(
+    (stock) =>
+      stock.price === null &&
+      !stock.loading &&
+      !stock.error
+  );
+
+  if (pendingStocks.length === 0) return;
+
+  const symbols = pendingStocks.map((stock) => stock.symbol);
+
+  setStocks((current) =>
+    current.map((stock) =>
+      symbols.includes(stock.symbol)
+        ? { ...stock, loading: true }
+        : stock
+    )
+  );
+
+  const fetchStockData = async (symbol: string) => {
+    try {
+      const response = await fetch(
+        `/api/stocks?symbol=${encodeURIComponent(symbol)}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to fetch stock.");
+      }
+
+      setStocks((current) =>
+        current.map((stock) =>
+          stock.symbol === symbol
+            ? {
+                ...stock,
+                price: data.price,
+                changePercent: data.changePercent,
+                positive: data.positive,
+                date: data.date,
+                loading: false,
+                error: undefined,
+              }
+            : stock
+        )
+      );
+    } catch (error) {
+      setStocks((current) =>
+        current.map((stock) =>
+          stock.symbol === symbol
+            ? {
+                ...stock,
+                loading: false,
+                error: "Unable to retrieve data",
+              }
+            : stock
+        )
+      );
+    }
+  };
+
+  const fetchStocksSequentially = async () => {
+  for (const stock of pendingStocks) {
+    await fetchStockData(stock.symbol);
+
+    // Wait 1.2 seconds before the next request
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1200)
+    );
+  }
+};
+
+void fetchStocksSequentially();
+}, [stocks, watchlistLoaded]);
 
 
 const handleRemoveStock = (symbol: string) => {
@@ -176,11 +281,13 @@ const formatDate = (date: Date) =>{
         action="https://www.google.com/search"
         method="GET"
         target="_blank"
-        onSubmit={()=>{
-          if (searchRef.current){
-            searchRef.current.value = "";
-          }
-        }}
+        onSubmit={() => {
+  setTimeout(() => {
+    if (searchRef.current) {
+      searchRef.current.value = "";
+    }
+  }, 100);
+}}
       >
         <input
         ref={searchRef}
@@ -312,14 +419,29 @@ const formatDate = (date: Date) =>{
                   <span className="stock-name">{stock.name}</span>
                 </div>
                 <div className="stock-prices">
-  <strong>${stock.price}</strong>
+  <strong>
+    {stock.loading
+      ? "Loading..."
+      : stock.price !== null
+        ? `$${stock.price.toFixed(2)}`
+        : "—"}
+  </strong>
+
   <span className={stock.positive ? "positive" : "negative"}>
-    {stock.positive ? (
-      <ArrowUpRight size={13} />
-    ) : (
-      <ArrowDownRight size={13} />
+    {stock.changePercent !== null && (
+      <>
+        {stock.positive ? (
+          <ArrowUpRight size={13} />
+        ) : (
+          <ArrowDownRight size={13} />
+        )}
+
+        {stock.positive ? "+" : ""}
+        {stock.changePercent.toFixed(2)}%
+      </>
     )}
-    {stock.change}
+
+    {stock.error && "Unavailable"}
   </span>
 </div>
 
