@@ -5,6 +5,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CloudSun,
+  Cloud,
+  Sun,
+  CloudRain,
+  CloudSnow,
+  CloudFog,
+  CloudLightning,
   Plus,
   Clock3,
   Check,
@@ -21,6 +27,41 @@ type Stock = {
   error?: string;
   date?: string;
 };
+
+type Weather = {
+  temperature: number;
+  feelsLike: number;
+  weatherCode: number;
+  windSpeed: number;
+  high: number;
+  low: number;
+};
+
+function getWeatherDescription(code: number) {
+  if (code === 0) return "Clear sky";
+  if (code <= 3) return "Partly cloudy";
+  if (code <= 48) return "Foggy";
+  if (code <= 57) return "Drizzle";
+  if (code <= 67) return "Rain";
+  if (code <= 77) return "Snow";
+  if (code <= 82) return "Rain showers";
+  if (code <= 86) return "Snow showers";
+  if (code <= 99) return "Thunderstorms";
+
+  return "Unknown conditions";
+}
+function getWeatherIcon(code: number) {
+  if (code === 0) return Sun;
+  if (code <= 3) return CloudSun;
+  if (code <= 48) return CloudFog;
+  if (code <= 67) return CloudRain;
+  if (code <= 77) return CloudSnow;
+  if (code <= 82) return CloudRain;
+  if (code <= 86) return CloudSnow;
+  if (code <= 99) return CloudLightning;
+
+  return Cloud;
+}
 
 const initialWatchlist: Stock[] = [
   { symbol: "NVDA", name: "NVIDIA", price: null, changePercent: null, positive: true, loading: false },
@@ -60,7 +101,31 @@ export default function Home() {
   const [showAddStock, setShowAddStock] = useState(false);
   const [newStockSymbol, setNewStockSymbol] = useState("");
   const [stockError, setStockError] = useState("");
+  const [weather, setWeather] = useState<Weather | null>(null);
+const [weatherLoading, setWeatherLoading] = useState(true);
+const [weatherError, setWeatherError] = useState(false);
 
+useEffect(() => {
+  const fetchWeather = async () => {
+    try {
+      const response = await fetch("/api/weather");
+
+      if (!response.ok) {
+        throw new Error("Weather request failed");
+      }
+
+      const data = await response.json();
+      setWeather(data);
+    } catch (error) {
+      console.error("Weather error:", error);
+      setWeatherError(true);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  fetchWeather();
+}, []);
 useEffect(() => {
   const savedStocks = localStorage.getItem("daymark-watchlist");
 
@@ -459,26 +524,59 @@ const formatDate = (date: Date) =>{
         </Widget>
 
         <Widget className="weather-widget">
-          <SectionLabel number="04">WEATHER</SectionLabel>
-          <div className="widget-heading">
-            <h2>Outside</h2>
-            <span className="location-label">CALGARY, AB</span>
-          </div>
-          <div className="weather-main">
-            <CloudSun size={43} strokeWidth={1.1} />
-            <div className="temperature">8°</div>
-            <div className="weather-description">
-              <strong>Partly cloudy</strong>
-              <span>Feels like 6°</span>
-            </div>
-          </div>
-          <div className="weather-details">
-            <div><span>HIGH</span><strong>11°</strong></div>
-            <div><span>LOW</span><strong>2°</strong></div>
-            <div><span>WIND</span><strong>12 km/h</strong></div>
-          </div>
-          <p className="sample-note">Illustrative weather data</p>
-        </Widget>
+  <SectionLabel number="04">WEATHER</SectionLabel>
+
+  <div className="widget-heading">
+    <h2>Outside</h2>
+    <span className="location-label">CALGARY, AB</span>
+  </div>
+
+  {weatherLoading ? (
+    <p>Loading weather...</p>
+  ) : weatherError || !weather ? (
+    <p>Weather currently unavailable.</p>
+  ) : (
+    <>
+      <div className="weather-main">
+        {(() => {
+  const WeatherIcon = getWeatherIcon(weather.weatherCode);
+
+  return <WeatherIcon size={43} strokeWidth={1.1} />;
+})()}
+
+        <div className="temperature">
+          {Math.round(weather.temperature)}°
+        </div>
+
+        <div className="weather-description">
+          <strong>
+            {getWeatherDescription(weather.weatherCode)}
+          </strong>
+          <span>
+            Feels like {Math.round(weather.feelsLike)}°
+          </span>
+        </div>
+      </div>
+
+      <div className="weather-details">
+        <div>
+          <span>HIGH</span>
+          <strong>{Math.round(weather.high)}°</strong>
+        </div>
+
+        <div>
+          <span>LOW</span>
+          <strong>{Math.round(weather.low)}°</strong>
+        </div>
+
+        <div>
+          <span>WIND</span>
+          <strong>{Math.round(weather.windSpeed)} km/h</strong>
+        </div>
+      </div>
+    </>
+  )}
+</Widget>
 
         <Widget className="notes-widget">
           <SectionLabel number="05">DAILY NOTES</SectionLabel>
