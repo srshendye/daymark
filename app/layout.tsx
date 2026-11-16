@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Daymark | Your day, in perspective",
+  title: "Daymark | At a glance. ",
   description: "A personal dashboard to plan, explore, and stay informed.",
 };
 

@@ -37,6 +37,11 @@ type Weather = {
   low: number;
 };
 
+type Task = {
+  id: string;
+  text: string;
+  completed: boolean;
+};
 function getWeatherDescription(code: number) {
   if (code === 0) return "Clear sky";
   if (code <= 3) return "Partly cloudy";
@@ -104,6 +109,33 @@ export default function Home() {
   const [weather, setWeather] = useState<Weather | null>(null);
 const [weatherLoading, setWeatherLoading] = useState(true);
 const [weatherError, setWeatherError] = useState(false);
+const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"todo" | "notes">("todo");
+
+const [tasks, setTasks] = useState<Task[]>([]);
+const [tasksLoaded, setTasksLoaded] = useState(false);
+const [newTask, setNewTask] = useState("");
+
+// Load saved tasks
+useEffect(() => {
+  const savedTasks = localStorage.getItem("daymark-tasks");
+
+  if (savedTasks) {
+    try {
+      setTasks(JSON.parse(savedTasks));
+    } catch {
+      console.error("Could not load saved tasks.");
+    }
+  }
+
+  setTasksLoaded(true);
+}, []);
+
+// Save tasks whenever they change
+useEffect(() => {
+  if (tasksLoaded) {
+    localStorage.setItem("daymark-tasks", JSON.stringify(tasks));
+  }
+}, [tasks, tasksLoaded]);
 
 useEffect(() => {
   const fetchWeather = async () => {
@@ -158,6 +190,38 @@ useEffect(() => {
   }
 }, [stocks, watchlistLoaded]);
 
+const handleAddTask = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  const text = newTask.trim();
+
+  if (!text) return;
+
+  setTasks((current) => [
+    ...current,
+    {
+      id: crypto.randomUUID(),
+      text,
+      completed: false,
+    },
+  ]);
+
+  setNewTask("");
+};
+
+const handleToggleTask = (id: string) => {
+  setTasks((current) =>
+    current.map((task) =>
+      task.id === id
+        ? { ...task, completed: !task.completed }
+        : task
+    )
+  );
+};
+
+const handleRemoveTask = (id: string) => {
+  setTasks((current) => current.filter((task) => task.id !== id));
+};
 const handleAddStock = (e: React.SyntheticEvent<HTMLFormElement>) => {
   e.preventDefault();
 
@@ -286,7 +350,6 @@ const formatDate = (date: Date) =>{
       day: "numeric",
       month: "long",
     }
-    console.log('date', date.toLocaleDateString("en-CA", options))
 
     return date.toLocaleDateString("en-CA", options)
   };
@@ -313,7 +376,6 @@ const formatDate = (date: Date) =>{
   useEffect(()=>{ //save to storage when the written note changes
     if(notesLoaded){
       localStorage.setItem("daymark-notes", notes);
-      console.log(localStorage.getItem("daymark-notes"))
     }
   }, [notes, notesLoaded])
 
@@ -374,36 +436,122 @@ const formatDate = (date: Date) =>{
       </div>
 
       <div className="widget-grid">
-        <Widget className="calendar-widget">
-          <SectionLabel number="01">CALENDAR</SectionLabel>
-          <div className="widget-heading">
-            <h2>Today&apos;s agenda</h2>
-            <CalendarDays size={18} />
-          </div>
-          <div className="agenda-date">
-            <span className="agenda-day">{today?.getDate() ?? "--"}</span>
-            <div>
-              <p>{today?.toLocaleDateString("en-CA", { weekday: "long" }) ?? ""}</p>
-              <span>{today?.toLocaleDateString("en-CA", {
-        month: "long",
-        year: "numeric",
-      }) ?? ""}</span>
+        <Widget className="workspace-widget">
+  <SectionLabel number="01">DAILY WORKSPACE</SectionLabel>
+
+  <div className="widget-heading">
+    <h2>{activeWorkspaceTab === "todo" ? "Today's focus" : "A thought for today"}</h2>
+
+    <div className="workspace-tabs">
+      <button
+        type="button"
+        className={`workspace-tab ${activeWorkspaceTab === "todo" ? "active" : ""}`}
+        onClick={() => setActiveWorkspaceTab("todo")}
+      >
+        To-do
+      </button>
+
+      <button
+        type="button"
+        className={`workspace-tab ${activeWorkspaceTab === "notes" ? "active" : ""}`}
+        onClick={() => setActiveWorkspaceTab("notes")}
+      >
+        Notes
+      </button>
+    </div>
+  </div>
+
+  {activeWorkspaceTab === "todo" ? (
+    <>
+      <div className="todo-summary">
+        <span>
+          {tasks.filter((task) => task.completed).length} OF {tasks.length} COMPLETE
+        </span>
+        <span>
+          {tasks.length === 0
+            ? "A fresh start"
+            : `${tasks.filter((task) => !task.completed).length} remaining`}
+        </span>
+      </div>
+
+      <div className="todo-list">
+        {tasks.length === 0 ? (
+          <p className="todo-empty">
+            Nothing on your list yet. Add a task to get started.
+          </p>
+        ) : (
+          tasks.map((task) => (
+            <div
+              className={`todo-item ${task.completed ? "completed" : ""}`}
+              key={task.id}
+            >
+              <label className="todo-label">
+                <input
+                  type="checkbox"
+                  checked={task.completed}
+                  onChange={() => handleToggleTask(task.id)}
+                />
+                <span>{task.text}</span>
+              </label>
+
+              <button
+                type="button"
+                className="todo-remove"
+                aria-label={`Remove ${task.text}`}
+                onClick={() => handleRemoveTask(task.id)}
+              >
+                ×
+              </button>
             </div>
-          </div>
-          <div className="event-list">
-            {events.map((event, index) => (
-              <div className="event" key={event.title}>
-                <span className="event-time">{event.time}</span>
-                <span className={`event-dot dot-${index}`} />
-                <div className="event-info">
-                  <strong>{event.title}</strong>
-                  <span>{event.detail}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="text-action">View calendar <ArrowUpRight size={14} /></button>
-        </Widget>
+          ))
+        )}
+      </div>
+
+      <form className="todo-add-form" onSubmit={handleAddTask}>
+        <input
+          type="text"
+          value={newTask}
+          onChange={(e) => setNewTask(e.target.value)}
+          placeholder="Add a task..."
+          aria-label="New task"
+        />
+
+        <button type="submit" aria-label="Add task">
+          <Plus size={16} />
+        </button>
+      </form>
+    </>
+  ) : (
+    <>
+      <textarea
+        placeholder="What is on your mind today?"
+        aria-label="Daily notes"
+        value={notes}
+        onChange={(e) => {
+          setNotes(e.target.value);
+          setSubmitted(false);
+        }}
+      />
+
+      <div className="notes-footer">
+        <span>Your space, your pace.</span>
+
+        <div className="notes-actions">
+          {submitted && <span className="save-status">Saved</span>}
+
+          <button
+            type="button"
+            className="icon-action"
+            aria-label="Save note"
+            onClick={handleNotesSubmit}
+          >
+            <Check size={16} />
+          </button>
+        </div>
+      </div>
+    </>
+  )}
+</Widget>
 
         <Widget className="market-widget">
           <SectionLabel number="02">MARKETS</SectionLabel>
@@ -577,39 +725,6 @@ const formatDate = (date: Date) =>{
     </>
   )}
 </Widget>
-
-        <Widget className="notes-widget">
-          <SectionLabel number="05">DAILY NOTES</SectionLabel>
-          <div className="widget-heading">
-            <h2>A thought for today</h2>
-            <Clock3 size={17} />
-          </div>
-          <textarea placeholder="What is on your mind today?" aria-label="Daily notes" 
-          value={notes}
-          onChange={(e)=> {
-            setNotes(e.target.value)
-            setSubmitted(false)
-          } }/>
-          
-<div className="notes-footer">
-  <span>Your space, your pace.</span>
-
-  <div className="notes-actions">
-    {submitted && (
-      <span className="save-status">Saved</span>
-    )}
-
-    <button
-      className="icon-action"
-      aria-label="Save note"
-      onClick={handleNotesSubmit}
-    >
-      <Check size={16} />
-    </button>
-  </div>
-</div>
-
-        </Widget>
       </div>
 
       <footer className="footer">
