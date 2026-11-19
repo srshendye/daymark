@@ -474,6 +474,7 @@ const formatDate = (date: Date) =>{
           name="q"
           placeholder="Search anything, or find something to focus on..."
           aria-label="Search Google"
+          autoComplete="off"
         />
       </form>
       <span className="search-shortcut">⌘ K</span>
