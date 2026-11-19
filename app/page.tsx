@@ -16,6 +16,18 @@ import {
   Check,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
+type MarketData = {
+  symbol: string;
+  date: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  positive: boolean;
+  history: {
+    date: string;
+    price: number;
+  }[];
+};
 
 type Stock = {
   symbol: string;
@@ -110,6 +122,11 @@ export default function Home() {
 const [weatherLoading, setWeatherLoading] = useState(true);
 const [weatherError, setWeatherError] = useState(false);
 const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<"todo" | "notes">("todo");
+
+const [marketData, setMarketData] = useState<MarketData | null>(null);
+const [marketLoading, setMarketLoading] = useState(true);
+const [marketError, setMarketError] = useState(false);
+const [marketRequested, setMarketRequested] = useState(false);
 
 const [tasks, setTasks] = useState<Task[]>([]);
 const [tasksLoaded, setTasksLoaded] = useState(false);
@@ -335,6 +352,41 @@ useEffect(() => {
 void fetchStocksSequentially();
 }, [stocks, watchlistLoaded]);
 
+// Fetch S&P 500 market data after the watchlist finishes loading
+useEffect(() => {
+  if (!watchlistLoaded || marketRequested) return;
+
+  const watchlistFinished = stocks.every(
+    (stock) => stock.price !== null || Boolean(stock.error)
+  );
+
+  if (!watchlistFinished) return;
+
+  setMarketRequested(true);
+  const fetchMarketData = async () => {
+  try {
+    // Allow time between the final watchlist request and SPY
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    const response = await fetch("/api/stocks?symbol=SPY");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to retrieve market data.");
+      }
+
+      setMarketData(data);
+    } catch (error) {
+      console.error("Market data error:", error);
+      setMarketError(true);
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
+  void fetchMarketData();
+}, [stocks, watchlistLoaded, marketRequested]);
+
 
 const handleRemoveStock = (symbol: string) => {
   setStocks((current) =>
@@ -396,9 +448,9 @@ const formatDate = (date: Date) =>{
       
   <section className="welcome">
     <p className="eyebrow">{today? formatDate(today).toUpperCase() : ""}</p>
-    <h1>Your day, <em>in perspective.</em></h1>
+    <h1> Today is a <em>good day</em> to have a <em>good day.</em></h1>
     <p className="welcome-subtitle">
-      A little space to think, plan, and stay informed.
+      Make today your masterpiece. 
     </p>
 
     <div className="search-wrap">
@@ -553,39 +605,114 @@ const formatDate = (date: Date) =>{
   )}
 </Widget>
 
-        <Widget className="market-widget">
-          <SectionLabel number="02">MARKETS</SectionLabel>
-          <div className="widget-heading">
-            <h2>Market snapshot</h2>
-            <span className="live-indicator"><span /> SAMPLE DATA</span>
-          </div>
-          <div className="market-summary">
-            <div>
-              <span className="data-label">S&P 500</span>
-              <p className="market-value">6,850.92</p>
-            </div>
-            <div className="market-change positive">
-              <ArrowUpRight size={15} /> 0.72%
-            </div>
-          </div>
-          <div className="market-chart">
-            <svg viewBox="0 0 500 110" preserveAspectRatio="none" role="img" aria-label="Illustrative market movement chart">
-              <defs>
-                <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#899c87" stopOpacity=".24" />
-                  <stop offset="100%" stopColor="#899c87" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path d="M0 85 C30 80 35 65 60 72 S100 90 125 60 S165 75 190 50 S220 55 250 42 S285 62 315 36 S355 48 380 27 S420 45 445 18 S480 28 500 8 L500 110 L0 110 Z" fill="url(#chartFill)" />
-              <path d="M0 85 C30 80 35 65 60 72 S100 90 125 60 S165 75 190 50 S220 55 250 42 S285 62 315 36 S355 48 380 27 S420 45 445 18 S480 28 500 8" fill="none" stroke="#899c87" strokeWidth="2" />
-            </svg>
-          </div>
-          <div className="chart-labels"><span>9:30 AM</span><span>12 PM</span><span>4 PM</span></div>
-          <div className="market-footer">
-            <span>Illustrative values, not live market data</span>
-            <span>1D</span>
-          </div>
-        </Widget>
+        
+<Widget className="market-widget">
+  <SectionLabel number="02">MARKETS</SectionLabel>
+
+  <div className="widget-heading">
+    <h2>Market snapshot</h2>
+    <span className="live-indicator">
+      <span />
+      {marketLoading
+        ? "LOADING"
+        : marketError || !marketData
+          ? "UNAVAILABLE"
+          : "LATEST DATA"}
+    </span>
+  </div>
+
+  {marketLoading ? (
+    <p className="market-message">Loading market data...</p>
+  ) : marketError || !marketData ? (
+    <p className="market-message">
+      Market data is currently unavailable.
+    </p>
+  ) : (
+    <>
+      <div className="market-summary">
+        <div>
+          <span className="data-label">S&P 500 · SPY</span>
+          <p className="market-value">
+            ${marketData.price.toFixed(2)}
+          </p>
+        </div>
+
+        <div className={`market-change ${marketData.positive ? "positive" : "negative"}`}>
+          {marketData.positive ? (
+            <ArrowUpRight size={15} />
+          ) : (
+            <ArrowDownRight size={15} />
+          )}
+          {marketData.positive ? "+" : ""}
+          {marketData.changePercent.toFixed(2)}%
+        </div>
+      </div>
+
+      <div className="market-chart">
+        <svg
+          viewBox="0 0 500 110"
+          preserveAspectRatio="none"
+          role="img"
+          aria-label="SPY historical closing prices over the last 30 trading days"
+        >
+          <defs>
+            <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#899c87" stopOpacity=".24" />
+              <stop offset="100%" stopColor="#899c87" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {(() => {
+            const prices = marketData.history.map((point) => point.price);
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            const range = max - min || 1;
+
+            const points = prices.map((price, index) => ({
+              x: (index / (prices.length - 1)) * 500,
+              y: 90 - ((price - min) / range) * 75,
+            }));
+
+            const line = points
+              .map((point, index) =>
+                `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`
+              )
+              .join(" ");
+
+            const area = `${line} L 500 110 L 0 110 Z`;
+
+            return (
+              <>
+                <path d={area} fill="url(#chartFill)" />
+                <path
+                  d={line}
+                  fill="none"
+                  stroke="#899c87"
+                  strokeWidth="2"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </>
+            );
+          })()}
+        </svg>
+      </div>
+
+      <div className="chart-labels">
+        <span>{marketData.history[0]?.date}</span>
+        <span>
+          {marketData.history[Math.floor(marketData.history.length / 2)]?.date}
+        </span>
+        <span>{marketData.history[marketData.history.length - 1]?.date}</span>
+      </div>
+
+      <div className="market-footer">
+        <span>Last updated: {marketData.date}</span>
+        <span>30D</span>
+      </div>
+    </>
+  )}
+</Widget>
+
 
         <Widget className="watchlist-widget">
           <SectionLabel number="03">WATCHLIST</SectionLabel>

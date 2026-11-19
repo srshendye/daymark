@@ -1299,3 +1299,12 @@ button {
 .todo-add-form button:hover {
   color: var(--text-primary);
 }
+
+.market-message {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+}

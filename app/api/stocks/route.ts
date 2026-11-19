@@ -40,7 +40,12 @@ export async function GET(request: Request) {
 
         if (data["Error Message"] || data["Information"] || data["Note"]) {
             return NextResponse.json(
-                { error: data["Error Message"] || data["Information"] || data["Note"] },
+                {
+                    error:
+                        data["Error Message"] ||
+                        data["Information"] ||
+                        data["Note"],
+                },
                 { status: 502 }
             );
         }
@@ -72,6 +77,14 @@ export async function GET(request: Request) {
         const change = latestPrice - previousPrice;
         const changePercent = (change / previousPrice) * 100;
 
+        const history = dates
+            .slice(0, 30)
+            .reverse()
+            .map((date) => ({
+                date,
+                price: Number(timeSeries[date]["4. close"]),
+            }));
+
         return NextResponse.json({
             symbol,
             date: latestDate,
@@ -79,6 +92,7 @@ export async function GET(request: Request) {
             change,
             changePercent,
             positive: change >= 0,
+            history,
         });
     } catch (error) {
         console.error("Stock API error:", error);
